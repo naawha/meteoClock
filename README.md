@@ -2,7 +2,7 @@
 
 <img src="img/overview.png" alt="overview" width="300"/>
 
-Основано_ на проекте Алекса Гайвера https://alexgyver.ru/meteoclock/
+Основано на проекте Алекса Гайвера https://alexgyver.ru/meteoclock/
 
 ## Основные фичи проекта
 - Часы и календарь на русском языке
