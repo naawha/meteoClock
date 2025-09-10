@@ -1,8 +1,8 @@
 # Часы-метеостанция
 
-![overview](img/overview.png)
+<img src="img/overview.png" alt="overview" width="300"/>
 
-Основано на проекте Алекса Гайвера https://alexgyver.ru/meteoclock/
+Основано_ на проекте Алекса Гайвера https://alexgyver.ru/meteoclock/
 
 ## Основные фичи проекта
 - Часы и календарь на русском языке
