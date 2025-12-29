@@ -1,36 +1,10 @@
-/***************************************************
-  This is our GFX example for the Adafruit ILI9341 Breakout and Shield
-  ----> http://www.adafruit.com/products/1651
-
-  Check out the links above for our tutorials and wiring diagrams
-  These displays use SPI to communicate, 4 or 5 pins are required to
-  interface (RST is optional)
-  Adafruit invests time and resources providing this open source code,
-  please support Adafruit and open-source hardware by purchasing
-  products from Adafruit!
-
-  Written by Limor Fried/Ladyada for Adafruit Industries.
-  MIT license, all text above must be included in any redistribution
- ****************************************************/
-#define ILI9341_BLACK       0x0000  ///<   0,   0,   0
-#define ILI9341_NAVY        0x000F  ///<   0,   0, 123
-#define ILI9341_DARKGREEN   0x03E0  ///<   0, 125,   0
-#define ILI9341_DARKCYAN    0x03EF  ///<   0, 125, 123
-#define ILI9341_MAROON      0x7800  ///< 123,   0,   0
-#define ILI9341_PURPLE      0x780F  ///< 123,   0, 123
-#define ILI9341_OLIVE       0x7BE0  ///< 123, 125,   0
-#define ILI9341_LIGHTGREY   0xC618  ///< 198, 195, 198
-#define ILI9341_DARKGREY    0x7BEF  ///< 123, 125, 123
-#define ILI9341_BLUE        0x001F  ///<   0,   0, 255
-#define ILI9341_GREEN       0x07E0  ///<   0, 255,   0
-#define ILI9341_CYAN        0x07FF  ///<   0, 255, 255
-#define ILI9341_RED         0xF800  ///< 255,   0,   0
-#define ILI9341_MAGENTA     0xF81F  ///< 255,   0, 255
-#define ILI9341_YELLOW      0xFFE0  ///< 255, 255,   0
-#define ILI9341_WHITE       0xFFFF  ///< 255, 255, 255
-#define ILI9341_ORANGE      0xFD20  ///< 255, 165,   0
-#define ILI9341_GREENYELLOW 0xAFE5  ///< 173, 255,  41
-#define ILI9341_PINK        0xFC18  ///< 255, 130, 198
+#define ILI9341_BLACK       0x0000
+#define ILI9341_DARKGREEN   0x03E0
+#define ILI9341_PURPLE      0x780F
+#define ILI9341_BLUE        0x001F
+#define ILI9341_RED         0xF800
+#define ILI9341_YELLOW      0xFFE0
+#define ILI9341_WHITE       0xFFFF
 
 #include "SPI.h"
 #include "Adafruit_GFX.h"
@@ -42,7 +16,6 @@
 #include <Adafruit_BME280.h>
 #include <MHZ19_uart.h>
 
-// For the Adafruit shield, these are the default.
 #define TFT_CLK 13
 #define TFT_MISO 12
 #define TFT_MOSI 11
@@ -55,22 +28,19 @@
 
 #define BTN_PIN 7
 #define MAX_LED_LEVEL 255
-#define MIN_LED_LEVEL 1
 
 #define SYMBOL_W 5
 #define SYMBOL_H 7
 #define SPACE_W 1
-#define RESET_CLOCK 0       // сброс часов на время загрузки прошивки (для модуля с несъёмной батарейкой). Не забудь поставить 0 и прошить ещё раз!
-#define SENS_TIME 10000     // время в мс
+#define RESET_CLOCK 0
+#define SENS_TIME 10000
 #define MHZ_RX 2
 #define MHZ_TX 3
 
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST);
 
 RTC_DS3231 rtc;
-DateTime now;
 
-#define SEALEVELPRESSURE_HPA (1013.25)
 Adafruit_BME280 bme;
 
 MHZ19_uart mhz19;
@@ -79,7 +49,7 @@ GTimer<millis> clockTimer;
 GTimer<millis> sensorsTimer;
 GTimer<millis> dimmerTimer;
 
-boolean dotFlag;
+uint8_t dotFlag;
 int8_t hrs, mins, secs, day, month;
 
 byte screenBrightness;
@@ -87,11 +57,17 @@ float dispTemp;
 byte dispHum;
 int dispPres;
 int dispCO2;
-int pressureArray[6];
+char tempBuf[6];
+char humBuf[5];
+char presBuf[6];
+char co2Buf[6];
+char clockBuf[6];
+char dayBuf[3];
+char monthBuf[3];
 
-boolean button;
-boolean button_flag;
-boolean brightnessFlag;
+uint8_t button;
+uint8_t button_flag;
+uint8_t brightnessFlag;
 
 void setup() {
   screenBrightness = MAX_LED_LEVEL;
@@ -110,9 +86,6 @@ void setup() {
   dimmerTimer.setTime(SENS_TIME);
   dimmerTimer.start();
 
-  Serial.begin(9600);
-  Serial.println("ILI9341 Test!");
-
   tft.begin();
   bme.begin(0x76);
   mhz19.begin(MHZ_TX, MHZ_RX);
@@ -121,12 +94,7 @@ void setup() {
   tft.setTextSize(3);
 
   delay(50);
-  if (rtc.begin()) {
-    Serial.println(F("OK"));
-  } else {
-    Serial.println(F("ERROR"));
-  }
-
+  rtc.begin();
   if (RESET_CLOCK || rtc.lostPower())
     rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
 
@@ -135,7 +103,7 @@ void setup() {
                   Adafruit_BME280::SAMPLING_X1, // pressure
                   Adafruit_BME280::SAMPLING_X1, // humidity
                   Adafruit_BME280::FILTER_OFF   );
-  now = rtc.now();
+  DateTime now = rtc.now();
   secs = now.second();
   mins = now.minute();
   hrs = now.hour();
@@ -161,12 +129,11 @@ void loop() {
   }
 
   button = !digitalRead(BTN_PIN);
-  if (button == 1 && button_flag == 0) {
+  if (button && !button_flag) {
     button_flag = 1;
     brightnessFlag = 1;
   }
-
-  if (button == 0 && button_flag == 1) {
+  if (!button && button_flag) {
     button_flag = 0;
     dimmerTimer.start();
   }
@@ -179,38 +146,29 @@ void loop() {
 
 }
 
-void drawClock(byte hours, byte minutes, byte secs, boolean dotState) {
-  String clock = String("");
-  if (hours < 10) {
-    clock += String(0);
-  }
-  clock += String(hours);
-  clock += String(":");
-  if (minutes < 10) {
-    clock += String(0);
-  }
-  clock += String(minutes);
-
-  printText(clock, 10, 10, 3, 0, ILI9341_YELLOW, true);
+void drawClock(byte hours, byte minutes, byte secs, uint8_t dotState) {
+  sprintf(clockBuf, hours<10 ? (minutes<10 ? "0%d:0%d" : "0%d:%d") : (minutes<10 ? "%d:0%d" : "%d:%d"), hours, minutes);
+  printText(clockBuf, 10, 10, 3, 0, ILI9341_YELLOW, true);
 }
 
 void drawDate(byte day, byte month) {
+  DateTime now = rtc.now();
   drawDayOfWeek(140, 17, now.dayOfTheWeek());
-  if (day<10) {
-    printText("0"+String(day), 17, SYMBOL_H+10, 2, 13, ILI9341_WHITE, true);
-  } else {
-    printText(String(day), 17, SYMBOL_H+10, 2, 13, ILI9341_WHITE, true);
-  }
+  sprintf(dayBuf, day<10 ? "0%d" : "%d", day);
+  printText(dayBuf, 17, SYMBOL_H+10, 2, 13, ILI9341_WHITE, true);
   printText(".", 17, SYMBOL_H+10, 2, 15, ILI9341_WHITE, true);
   if (month<10) {
     printText("0", 17, SYMBOL_H+10, 2, 16, ILI9341_WHITE, true);
-    printText(String(month), 17, SYMBOL_H+10, 2, 17, ILI9341_WHITE, true);
+    sprintf(monthBuf, "%d", month);
+    printText(monthBuf, 17, SYMBOL_H+10, 2, 17, ILI9341_WHITE, true);
   } else {
-    printText(String(month), 17, SYMBOL_H+10, 2, 16, ILI9341_WHITE, true);
+    sprintf(monthBuf, "%d", month);
+    printText(monthBuf, 17, SYMBOL_H+10, 2, 16, ILI9341_WHITE, true);
   }
 }
 
-void printText(String text, int x, int y, byte size, byte index, uint16_t COLOR, uint16_t FILL_COLOR) {
+void printText(const char* text, int x, int y, byte size, byte index, uint16_t COLOR, uint16_t FILL_COLOR) {
+  byte len = strlen(text);
   tft.setCursor(
     x+index*SYMBOL_W*size+index*SPACE_W*size,
     y
@@ -219,7 +177,7 @@ void printText(String text, int x, int y, byte size, byte index, uint16_t COLOR,
   tft.fillRect(
     x+index*SYMBOL_W*size+index*SPACE_W*size,
     y,
-    SYMBOL_W*size*text.length()+SPACE_W*size*(text.length()-1),
+    SYMBOL_W*size*len+SPACE_W*size*(len-1),
     SYMBOL_H*size,
     FILL_COLOR
   );
@@ -229,15 +187,15 @@ void printText(String text, int x, int y, byte size, byte index, uint16_t COLOR,
 
 void clockTick() {
   dotFlag = !dotFlag;
-  if (dotFlag) {          // каждую секунду пересчёт времени
+  if (dotFlag) {
     secs++;
-    if (secs > 59) {      // каждую минуту
+    if (secs > 59) {
       secs = 0;
       mins++;
       if (mins <= 59) drawClock(hrs, mins, secs, dotFlag);
     }
-    if (mins > 59) {      // каждый час
-      now = rtc.now();
+    if (mins > 59) {
+      DateTime now = rtc.now();
       secs = now.second();
       mins = now.minute();
       hrs = now.hour();
@@ -245,34 +203,20 @@ void clockTick() {
       month = now.month();
       drawClock(hrs, mins, secs, dotFlag);
       drawDate(day, month);
-      if (hrs > 23) {
-        hrs = 0;
-      }
+      if (hrs > 23) hrs = 0;
     }
   }
-  if (dotFlag) printText(String(":"), 10, 10, 3, 2, ILI9341_YELLOW, true);
-  else printText(String(" "), 10, 10, 3, 2, ILI9341_YELLOW, true);
+  if (dotFlag) printText(":", 10, 10, 3, 2, ILI9341_YELLOW, true);
+  else printText(" ", 10, 10, 3, 2, ILI9341_YELLOW, true);
 }
 
 void readSensors() {
   bme.takeForcedMeasurement();
   dispTemp = bme.readTemperature();
-  Serial.print("Temperature: ");
-  Serial.println(dispTemp);
   dispHum = bme.readHumidity();
-  Serial.print("Humidity: ");
-  Serial.println(dispHum);
   dispPres = (float)bme.readPressure() * 0.00750062;
-  Serial.print("Pressure: ");
-  Serial.println(dispPres);
   dispCO2 = mhz19.getPPM();
-  Serial.print("CO2: ");
-  Serial.println(dispCO2);
-  Serial.print("Brightness sensor: ");
-  Serial.println(analogRead(BRIGHTNESS_PIN));
   screenBrightness = map(analogRead(BRIGHTNESS_PIN), 0, 800, 1, 255);
-  Serial.print("Brightness map: ");
-  Serial.println(screenBrightness);
 }
 
 void drawSensors() {
@@ -283,38 +227,31 @@ void drawSensors() {
 }
 
 void drawTemperature() {
-  String temp = String(dispTemp, 0);
+  dtostrf(dispTemp, 0, 0, tempBuf);
   if (dispTemp >= 0) {
     printText("+", 34, 44+69, 3, 0, ILI9341_YELLOW, ILI9341_RED);
-    printText(temp, 34, 44+69, 3, 1, ILI9341_YELLOW, ILI9341_RED);
+    printText(tempBuf, 34, 44+69, 3, 1, ILI9341_YELLOW, ILI9341_RED);
   } else {
-    printText(temp, 34, 44+69, 3, 0, ILI9341_YELLOW, ILI9341_RED);
+    printText(tempBuf, 34, 44+69, 3, 0, ILI9341_YELLOW, ILI9341_RED);
   }
-
 }
 
 void drawHumidity() {
-  printText(String(dispHum) + "%", 120+34, 44+69, 3, 0, ILI9341_YELLOW, ILI9341_BLUE);
+  sprintf(humBuf, "%d%%", dispHum);
+  printText(humBuf, 120+34, 44+69, 3, 0, ILI9341_YELLOW, ILI9341_BLUE);
 }
 
 void drawPressure() {
-  printText(String(dispPres), 20, 182+69, 3, 0, ILI9341_YELLOW, ILI9341_DARKGREEN);
+  sprintf(presBuf, "%d", dispPres);
+  printText(presBuf, 20, 182+69, 3, 0, ILI9341_YELLOW, ILI9341_DARKGREEN);
   printText("MM", 75, 182+69+7, 2, 0, ILI9341_YELLOW, ILI9341_DARKGREEN);
 }
 
 void drawCO2() {
-  int x = 34;
-  if (dispCO2 >= 1000) {
-    x = 25;
-  }
-  tft.fillRect(
-    120,
-    182+69,
-    240,
-    SYMBOL_H*3,
-    ILI9341_PURPLE
-  );
-  printText(String(dispCO2), 120+x, 182+69, 3, 0, ILI9341_YELLOW, ILI9341_PURPLE);
+  byte x = (dispCO2 >= 1000) ? 25 : 34;
+  tft.fillRect(120, 182+69, 240, SYMBOL_H*3, ILI9341_PURPLE);
+  sprintf(co2Buf, "%d", dispCO2);
+  printText(co2Buf, 120+x, 182+69, 3, 0, ILI9341_YELLOW, ILI9341_PURPLE);
 }
 
 void drawArrow(byte x, byte y) {
@@ -426,12 +363,4 @@ void drawCyrillict(byte x, byte y) {
     tft.drawFastHLine(x, y+6, SYMBOL_W*2, ILI9341_WHITE);
     tft.drawFastVLine(x+SYMBOL_W-1, y+5, SYMBOL_H*2-5, ILI9341_WHITE);
     tft.drawFastVLine(x+SYMBOL_W, y+5, SYMBOL_H*2-5, ILI9341_WHITE);
-}
-
-void storePressure() {
-  for (byte i = 0; i < 5; i++) {
-    pressureArray[i] = pressureArray[i + 1];
-  }
-  pressureArray[5] = dispPres;
-
 }
