@@ -1,0 +1,40 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Arduino / build
+*.elf
+*.hex
+*.map
+build/
+*.ino.cpp
+*.ino.eep
+*.ino.with_bootloader.bin
+*.ino.with_bootloader.hex
+
+# IDE
+.idea/
+.vscode/
+*.code-workspace
+*.sublime-project
+*.sublime-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Локальные/временные файлы
+*.bak
+*.orig
+*.log
